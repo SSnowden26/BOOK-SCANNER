@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book ISBN Scanner</title>
+    <!-- Using a more reliable, highly compatible script source -->
+    <script src="https://jsdelivr.net"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -14,7 +16,7 @@
         }
         h1 { text-align: center; color: #1d1d1f; }
         
-        #scanner-container {
+        #reader {
             width: 100%;
             min-height: 300px;
             background: #1d1d1f;
@@ -22,16 +24,8 @@
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
+        
         .scanner-controls {
             display: flex;
             justify-content: center;
@@ -40,6 +34,7 @@
             border-radius: 0 0 12px 12px;
             margin-top: -4px;
         }
+        
         #scanned-books {
             margin-top: 20px;
             background: white;
@@ -79,11 +74,12 @@
         .loading { color: #86868b; font-style: italic; }
         .status-message {
             position: absolute;
+            top: 40%;
+            left: 5%;
             width: 90%;
             text-align: center;
             color: #aeaeaf;
             font-size: 16px;
-            padding: 10px;
         }
     </style>
 </head>
@@ -91,9 +87,8 @@
 
     <h1>📚 Book Scanner</h1>
     
-    <div id="scanner-container">
-        <div id="status-msg" class="status-message">Scanner offline. Ready to start.</div>
-        <video id="webcam-preview" autoplay playsinline muted></video>
+    <div id="reader">
+        <div id="scanner-status" class="status-message">Scanner offline. Ready to start.</div>
     </div>
 
     <div class="scanner-controls">
@@ -123,77 +118,72 @@
         let savedBooks = JSON.parse(localStorage.getItem("scannedBooks")) || [];
         let lastScannedIsbn = "";
         let isProcessing = false;
-        let streamActive = null;
-        let scanInterval = null;
+        let html5QrcodeScanner = null;
 
         const startBtn = document.getElementById("start-btn");
         const stopBtn = document.getElementById("stop-btn");
-        const statusMsg = document.getElementById("status-msg");
-        const video = document.getElementById("webcam-preview");
+        const statusMsg = document.getElementById("scanner-status");
 
-        // Verify native device compatibility
-        const hasNativeScanner = ('BarcodeDetector' in window);
-
-        async function startScanner() {
-            if (!hasNativeScanner) {
-                showError("Your browser or device doesn't support built-in barcode scanning natively. Try Safari on updated iOS or Chrome on Android.");
-                return;
-            }
-
-            statusMsg.innerHTML = "Accessing camera...";
+        function startScanner() {
+            statusMsg.innerHTML = "Opening camera system...";
             startBtn.style.display = "none";
             stopBtn.style.display = "inline-block";
 
-            try {
-                streamActive = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: false
-                });
-                
-                video.srcObject = streamActive;
-                video.style.display = "block";
-                statusMsg.style.display = "none";
-
-                // Initialize the native engine focused on EAN-13 book barcodes
-                const detector = new BarcodeDetector({ formats: ['ean_13'] });
-                
-                // Track video frames dynamically every 300ms
-                scanInterval = setInterval(async () => {
-                    if (isProcessing) return;
-                    try {
-                        const barcodes = await detector.detect(video);
-                        if (barcodes.length > 0) {
-                            onScanSuccess(barcodes[0].rawValue);
-                        }
-                    } catch (e) {
-                        console.error("Scanner tracking error:", e);
-                    }
-                }, 300);
-
-            } catch (err) {
-                console.error("Camera entry error:", err);
-                showError("Camera access denied. Make sure you are using an HTTPS secure URL.");
+            // Fallback safety check if CDN link is blocked locally
+            if (typeof Html5Qrcode === 'undefined') {
+                showErrorInterface("The loading link was blocked by your browser network filter. Try disconnecting from local Wi-Fi or turning off extensions.");
+                return;
             }
+
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            const config = {
+                fps: 15,
+                qrbox: (width, height) => {
+                    return { width: Math.floor(width * 0.85), height: Math.floor(height * 0.5) };
+                },
+                formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ]
+            };
+
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess
+            ).then(() => {
+                statusMsg.style.display = "none";
+            }).catch(err => {
+                console.error("Camera connection blocked:", err);
+                showErrorInterface(err.message || err);
+            });
         }
 
         function stopScanner() {
-            clearInterval(scanInterval);
-            if (streamActive) {
-                streamActive.getTracks().forEach(track => track.stop());
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    resetInterface();
+                }).catch(err => {
+                    console.error("Scanner close error:", err);
+                    resetInterface();
+                });
+            } else {
+                resetInterface();
             }
-            video.style.display = "none";
+        }
+
+        function resetInterface() {
             statusMsg.style.display = "block";
             statusMsg.innerHTML = "Scanner offline. Ready to start.";
             startBtn.style.display = "inline-block";
             stopBtn.style.display = "none";
         }
 
-        function showError(text) {
+        function showErrorInterface(errorText) {
             statusMsg.style.display = "block";
-            statusMsg.innerHTML = `<span style="color: #ff453a; font-weight: bold;">System Blocked</span><br><span style="font-size: 13px;">${text}</span>`;
+            statusMsg.innerHTML = `
+                <span style="color: #ff453a; font-weight: bold;">Camera Blocked</span><br>
+                <span style="font-size: 13px; color: #aeaeaf;">${errorText}</span><br>
+                <span style="font-size: 12px; color: #0071e3; display:inline-block; margin-top:10px;">Verify link begins with HTTPS://</span>`;
             startBtn.style.display = "inline-block";
             stopBtn.style.display = "none";
-            video.style.display = "none";
         }
 
         function renderSavedBooks() {
@@ -207,8 +197,8 @@
             }
         }
 
-        async function onScanSuccess(isbnValue) {
-            const isbn = isbnValue.trim();
+        async function onScanSuccess(decodedText) {
+            const isbn = decodedText.trim();
             if (isbn.length !== 13 || isProcessing || isbn === lastScannedIsbn) return;
 
             isProcessing = true;
@@ -216,7 +206,7 @@
             
             const tableBody = document.getElementById("book-rows");
             const tempRow = document.createElement("tr");
-            tempRow.innerHTML = `<td class="loading">Fetching data...</td><td>-</td><td>${isbn}</td>`;
+            tempRow.innerHTML = `<td class="loading">Fetching details...</td><td>-</td><td>${isbn}</td>`;
             tableBody.insertBefore(tempRow, tableBody.firstChild);
 
             try {
@@ -238,11 +228,11 @@
                 renderSavedBooks();
 
             } catch (error) {
-                console.error("API Error: ", error);
+                console.error("API Error:", error);
                 tempRow.innerHTML = `<td class="loading">Network lookup error</td><td>-</td><td>${isbn}</td>`;
             }
 
-            setTimeout(() => { isProcessing = false; }, 3000); 
+            setTimeout(() => { isProcessing = false; }, 2500); 
         }
 
         function exportToCSV() {
@@ -263,12 +253,13 @@
         }
 
         function clearLogs() {
-            if (confirm("Clear your scanned library storage?")) {
+            if (confirm("Clear your collection log history?")) {
                 savedBooks = [];
                 localStorage.removeItem("scannedBooks");
                 renderSavedBooks();
             }
         }
+
         renderSavedBooks();
     </script>
 </body>
