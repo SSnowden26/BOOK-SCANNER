@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book ISBN Scanner</title>
-    <!-- Include Html5Qrcode library for reliable barcode scanning -->
-    <script src="https://unpkg.com"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -16,20 +14,31 @@
         }
         h1 { text-align: center; color: #1d1d1f; }
         
-        #reader {
+        #scanner-container {
             width: 100%;
-            min-height: 250px;
+            min-height: 300px;
             background: #1d1d1f;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
             display: flex;
-            align-items: center;
             justify-content: center;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            box-sizing: border-box;
+            align-items: center;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        .scanner-controls {
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            background: #2c2c2e;
+            border-radius: 0 0 12px 12px;
+            margin-top: -4px;
         }
         #scanned-books {
             margin-top: 20px;
@@ -50,16 +59,11 @@
             font-weight: 600;
             cursor: pointer;
             font-size: 14px;
-            transition: background-color 0.2s;
         }
-        .btn-start { background-color: #34c759; color: white; font-size: 16px; padding: 14px 28px; }
-        .btn-start:hover { background-color: #28a745; }
-        .btn-stop { background-color: #ff3b30; color: white; margin-bottom: 10px; }
-        .btn-stop:hover { background-color: #d63024; }
+        .btn-start { background-color: #34c759; color: white; font-size: 16px; padding: 12px 30px; }
+        .btn-stop { background-color: #ff3b30; color: white; display: none; }
         .btn-download { background-color: #0071e3; color: white; }
-        .btn-download:hover { background-color: #005bb5; }
         .btn-clear { background-color: #ffeef0; color: #ff3b30; }
-        .btn-clear:hover { background-color: #ffd6d9; }
         
         table {
             width: 100%;
@@ -73,21 +77,30 @@
         }
         th { background-color: #fafafa; }
         .loading { color: #86868b; font-style: italic; }
-        .controls-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .status-message {
+            position: absolute;
+            width: 90%;
+            text-align: center;
+            color: #aeaeaf;
+            font-size: 16px;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
 
     <h1>📚 Book Scanner</h1>
     
-    <!-- Camera viewfinder container with manual control interface -->
-    <div id="reader">
-        <div class="controls-container" id="initial-controls">
-            <button class="btn-start" onclick="startScanner()">Start Scanner</button>
-        </div>
+    <div id="scanner-container">
+        <div id="status-msg" class="status-message">Scanner offline. Ready to start.</div>
+        <video id="webcam-preview" autoplay playsinline muted></video>
     </div>
 
-    <!-- Scanned book log list -->
+    <div class="scanner-controls">
+        <button id="start-btn" class="btn-start" onclick="startScanner()">Start Scanner</button>
+        <button id="stop-btn" class="btn-stop" onclick="stopScanner()">Stop Scanner</button>
+    </div>
+
     <div id="scanned-books">
         <h2>Logged Books</h2>
         <div class="action-bar">
@@ -102,9 +115,7 @@
                     <th>ISBN</th>
                 </tr>
             </thead>
-            <tbody id="book-rows">
-                <!-- Scanned items will inject here dynamically -->
-            </tbody>
+            <tbody id="book-rows"></tbody>
         </table>
     </div>
 
@@ -112,62 +123,77 @@
         let savedBooks = JSON.parse(localStorage.getItem("scannedBooks")) || [];
         let lastScannedIsbn = "";
         let isProcessing = false;
-        let html5QrcodeScanner = null;
-        const readerEl = document.getElementById("reader");
+        let streamActive = null;
+        let scanInterval = null;
 
-        // Fail-safe check for library assets
-        if (typeof Html5Qrcode === 'undefined') {
-            readerEl.innerHTML = `<p style="color: #ff453a; font-weight: bold;">Error: The scanning library failed to load. Check your internet connection.</p>`;
-        }
+        const startBtn = document.getElementById("start-btn");
+        const stopBtn = document.getElementById("stop-btn");
+        const statusMsg = document.getElementById("status-msg");
+        const video = document.getElementById("webcam-preview");
 
-        function startScanner() {
-            // Re-render empty viewport with a stop action button at the top
-            readerEl.innerHTML = `
-                <div class="controls-container" style="position: absolute; z-index: 10; top: 15px;">
-                    <button class="btn-stop" onclick="stopScanner()">Stop Scanner</button>
-                </div>`;
+        // Verify native device compatibility
+        const hasNativeScanner = ('BarcodeDetector' in window);
 
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            const config = {
-                fps: 10,
-                qrbox: (width, height) => {
-                    return { width: Math.floor(width * 0.85), height: Math.floor(height * 0.5) };
-                },
-                formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ]
-            };
+        async function startScanner() {
+            if (!hasNativeScanner) {
+                showError("Your browser or device doesn't support built-in barcode scanning natively. Try Safari on updated iOS or Chrome on Android.");
+                return;
+            }
 
-            html5QrcodeScanner.start(
-                { facingMode: "environment" }, 
-                config, 
-                onScanSuccess
-            ).catch(err => {
-                console.error("Camera error details:", err);
-                showStartInterface(`
-                    <p style="color: #ff453a; font-weight: bold; margin: 0 0 10px 0;">Camera Access Blocked</p>
-                    <p style="font-size: 13px; color: #aeaeaf; margin: 0 0 15px 0;">${err.message || err}</p>
-                `);
-            });
-        }
+            statusMsg.innerHTML = "Accessing camera...";
+            startBtn.style.display = "none";
+            stopBtn.style.display = "inline-block";
 
-        function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    showStartInterface();
-                }).catch(err => {
-                    console.error("Failed to stop scanner cleanly:", err);
-                    showStartInterface();
+            try {
+                streamActive = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
                 });
-            } else {
-                showStartInterface();
+                
+                video.srcObject = streamActive;
+                video.style.display = "block";
+                statusMsg.style.display = "none";
+
+                // Initialize the native engine focused on EAN-13 book barcodes
+                const detector = new BarcodeDetector({ formats: ['ean_13'] });
+                
+                // Track video frames dynamically every 300ms
+                scanInterval = setInterval(async () => {
+                    if (isProcessing) return;
+                    try {
+                        const barcodes = await detector.detect(video);
+                        if (barcodes.length > 0) {
+                            onScanSuccess(barcodes[0].rawValue);
+                        }
+                    } catch (e) {
+                        console.error("Scanner tracking error:", e);
+                    }
+                }, 300);
+
+            } catch (err) {
+                console.error("Camera entry error:", err);
+                showError("Camera access denied. Make sure you are using an HTTPS secure URL.");
             }
         }
 
-        function showStartInterface(errorMessage = "") {
-            readerEl.innerHTML = `
-                <div class="controls-container">
-                    ${errorMessage}
-                    <button class="btn-start" onclick="startScanner()">Start Scanner</button>
-                </div>`;
+        function stopScanner() {
+            clearInterval(scanInterval);
+            if (streamActive) {
+                streamActive.getTracks().forEach(track => track.stop());
+            }
+            video.style.display = "none";
+            statusMsg.style.display = "block";
+            statusMsg.innerHTML = "Scanner offline. Ready to start.";
+            startBtn.style.display = "inline-block";
+            stopBtn.style.display = "none";
+        }
+
+        function showError(text) {
+            statusMsg.style.display = "block";
+            statusMsg.innerHTML = `<span style="color: #ff453a; font-weight: bold;">System Blocked</span><br><span style="font-size: 13px;">${text}</span>`;
+            startBtn.style.display = "inline-block";
+            stopBtn.style.display = "none";
+            video.style.display = "none";
         }
 
         function renderSavedBooks() {
@@ -181,8 +207,8 @@
             }
         }
 
-        async function onScanSuccess(decodedText) {
-            const isbn = decodedText.trim();
+        async function onScanSuccess(isbnValue) {
+            const isbn = isbnValue.trim();
             if (isbn.length !== 13 || isProcessing || isbn === lastScannedIsbn) return;
 
             isProcessing = true;
@@ -190,7 +216,7 @@
             
             const tableBody = document.getElementById("book-rows");
             const tempRow = document.createElement("tr");
-            tempRow.innerHTML = `<td class="loading">Fetching book details...</td><td>-</td><td>${isbn}</td>`;
+            tempRow.innerHTML = `<td class="loading">Fetching data...</td><td>-</td><td>${isbn}</td>`;
             tableBody.insertBefore(tempRow, tableBody.firstChild);
 
             try {
@@ -213,14 +239,14 @@
 
             } catch (error) {
                 console.error("API Error: ", error);
-                tempRow.innerHTML = `<td class="loading">Error loading data</td><td>-</td><td>${isbn}</td>`;
+                tempRow.innerHTML = `<td class="loading">Network lookup error</td><td>-</td><td>${isbn}</td>`;
             }
 
-            setTimeout(() => { isProcessing = false; }, 2500); 
+            setTimeout(() => { isProcessing = false; }, 3000); 
         }
 
         function exportToCSV() {
-            if (savedBooks.length === 0) { alert("No books scanned yet!"); return; }
+            if (savedBooks.length === 0) { alert("No books logged yet!"); return; }
             let csvContent = "data:text/csv;charset=utf-8,Title,Author,ISBN\n";
             savedBooks.forEach(book => {
                 const safeTitle = `"${book.title.replace(/"/g, '""')}"`;
@@ -237,14 +263,12 @@
         }
 
         function clearLogs() {
-            if (confirm("Are you sure you want to clear your collection log?")) {
+            if (confirm("Clear your scanned library storage?")) {
                 savedBooks = [];
                 localStorage.removeItem("scannedBooks");
                 renderSavedBooks();
             }
         }
-
-        // Initialize local log view on boot
         renderSavedBooks();
     </script>
 </body>
