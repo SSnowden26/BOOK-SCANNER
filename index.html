@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Book Scanner</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <h1>Book Scanner</h1>
+        <nav class="tabs">
+          <button id="tab-scan" class="tab-btn active">Scan</button>
+          <button id="tab-library" class="tab-btn">Library</button>
+        </nav>
+      </header>
+
+      <div id="status" class="status"></div>
+
+      <main id="panel-scan" class="panel">
+        <div id="scanner-view"></div>
+        <p class="hint">Point your phone's camera at a book's barcode (ISBN).</p>
+      </main>
+
+      <main id="panel-library" class="panel hidden">
+        <div id="library-grid" class="library-grid"></div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
