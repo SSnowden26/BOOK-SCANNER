@@ -16,7 +16,6 @@
         }
         h1 { text-align: center; color: #1d1d1f; }
         
-        /* Added min-height and text alignment to stop the container from collapsing */
         #reader {
             width: 100%;
             min-height: 250px;
@@ -45,15 +44,23 @@
             margin-top: 15px;
         }
         button {
-            padding: 10px 16px;
+            padding: 12px 20px;
             border-radius: 8px;
             border: none;
             font-weight: 600;
             cursor: pointer;
             font-size: 14px;
+            transition: background-color 0.2s;
         }
+        .btn-start { background-color: #34c759; color: white; font-size: 16px; padding: 14px 28px; }
+        .btn-start:hover { background-color: #28a745; }
+        .btn-stop { background-color: #ff3b30; color: white; margin-bottom: 10px; }
+        .btn-stop:hover { background-color: #d63024; }
         .btn-download { background-color: #0071e3; color: white; }
+        .btn-download:hover { background-color: #005bb5; }
         .btn-clear { background-color: #ffeef0; color: #ff3b30; }
+        .btn-clear:hover { background-color: #ffd6d9; }
+        
         table {
             width: 100%;
             border-collapse: collapse;
@@ -66,14 +73,19 @@
         }
         th { background-color: #fafafa; }
         .loading { color: #86868b; font-style: italic; }
+        .controls-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
     </style>
 </head>
 <body>
 
     <h1>📚 Book Scanner</h1>
     
-    <!-- Camera viewfinder container with initial loading text -->
-    <div id="reader">Initializing camera system...</div>
+    <!-- Camera viewfinder container with manual control interface -->
+    <div id="reader">
+        <div class="controls-container" id="initial-controls">
+            <button class="btn-start" onclick="startScanner()">Start Scanner</button>
+        </div>
+    </div>
 
     <!-- Scanned book log list -->
     <div id="scanned-books">
@@ -100,17 +112,22 @@
         let savedBooks = JSON.parse(localStorage.getItem("scannedBooks")) || [];
         let lastScannedIsbn = "";
         let isProcessing = false;
+        let html5QrcodeScanner = null;
         const readerEl = document.getElementById("reader");
 
-        // Safety catch: Make sure the script library loaded successfully from unpkg
+        // Fail-safe check for library assets
         if (typeof Html5Qrcode === 'undefined') {
-            readerEl.innerHTML = `<p style="color: #ff453a; font-weight: bold;">Error: The scanning library failed to load. Check your internet connection or ad-blocker.</p>`;
-        } else {
-            initScanner();
+            readerEl.innerHTML = `<p style="color: #ff453a; font-weight: bold;">Error: The scanning library failed to load. Check your internet connection.</p>`;
         }
 
-        function initScanner() {
-            const html5QrcodeScanner = new Html5Qrcode("reader");
+        function startScanner() {
+            // Re-render empty viewport with a stop action button at the top
+            readerEl.innerHTML = `
+                <div class="controls-container" style="position: absolute; z-index: 10; top: 15px;">
+                    <button class="btn-stop" onclick="stopScanner()">Stop Scanner</button>
+                </div>`;
+
+            html5QrcodeScanner = new Html5Qrcode("reader");
             const config = {
                 fps: 10,
                 qrbox: (width, height) => {
@@ -125,14 +142,32 @@
                 onScanSuccess
             ).catch(err => {
                 console.error("Camera error details:", err);
-                // Print the exact browser error directly inside the box
-                readerEl.innerHTML = `
-                    <div style="padding: 20px;">
-                        <p style="color: #ff453a; font-weight: bold; margin: 0 0 10px 0;">Camera Access Blocked</p>
-                        <p style="font-size: 13px; color: #aeaeaf; margin: 0;">${err.message || err}</p>
-                        <p style="font-size: 12px; color: #0071e3; margin-top: 15px;">Make sure your URL starts with <strong>https://</strong></p>
-                    </div>`;
+                showStartInterface(`
+                    <p style="color: #ff453a; font-weight: bold; margin: 0 0 10px 0;">Camera Access Blocked</p>
+                    <p style="font-size: 13px; color: #aeaeaf; margin: 0 0 15px 0;">${err.message || err}</p>
+                `);
             });
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    showStartInterface();
+                }).catch(err => {
+                    console.error("Failed to stop scanner cleanly:", err);
+                    showStartInterface();
+                });
+            } else {
+                showStartInterface();
+            }
+        }
+
+        function showStartInterface(errorMessage = "") {
+            readerEl.innerHTML = `
+                <div class="controls-container">
+                    ${errorMessage}
+                    <button class="btn-start" onclick="startScanner()">Start Scanner</button>
+                </div>`;
         }
 
         function renderSavedBooks() {
@@ -209,6 +244,7 @@
             }
         }
 
+        // Initialize local log view on boot
         renderSavedBooks();
     </script>
 </body>
