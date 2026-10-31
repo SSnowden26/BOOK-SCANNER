@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book ISBN Scanner</title>
-    <!-- Using a more reliable, highly compatible script source -->
-    <script src="https://jsdelivr.net"></script>
+    <!-- Combined stable script layer for maximum network fallback performance -->
+    <script src="https://cloudflare.com" integrity="sha512-r6rDA7W6ZeQXYkmU7sVwP6SgYYG1wXSpiLICZecC781CI7STGs9qRfdfbpF2bIa36Xhs5M+8Cc0GZTIkU64LaA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -129,7 +129,6 @@
             startBtn.style.display = "none";
             stopBtn.style.display = "inline-block";
 
-            // Fallback safety check if CDN link is blocked locally
             if (typeof Html5Qrcode === 'undefined') {
                 showErrorInterface("The loading link was blocked by your browser network filter. Try disconnecting from local Wi-Fi or turning off extensions.");
                 return;
