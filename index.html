@@ -20,6 +20,27 @@
       </form>
     </div>
 
+    <div id="auth-screen" class="lock-screen hidden">
+      <form id="auth-form">
+        <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v17H6.5a2.5 2.5 0 0 0 0 5H20" />
+        </svg>
+        <h2 id="auth-heading">Sign In</h2>
+        <input id="auth-username" type="text" autocomplete="username" placeholder="Username" />
+        <input
+          id="auth-password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Password"
+        />
+        <button type="submit" id="auth-submit-btn">Sign In</button>
+        <p id="auth-error" class="lock-error"></p>
+        <button type="button" id="auth-toggle-btn" class="auth-toggle-btn">
+          Need an account? Sign up
+        </button>
+      </form>
+    </div>
+
     <div id="app" class="hidden">
       <header class="topbar">
         <h1>
@@ -32,6 +53,7 @@
           <button id="tab-scan" class="tab-btn">Scan &amp; Search</button>
           <button id="tab-library" class="tab-btn active">Library</button>
           <button id="tab-wishlist" class="tab-btn">Wishlist</button>
+          <button id="tab-profile" class="tab-btn">Profile</button>
         </nav>
       </header>
 
@@ -94,6 +116,23 @@
 
       <main id="panel-wishlist" class="panel hidden">
         <div id="wishlist-grid" class="library-grid"></div>
+      </main>
+
+      <main id="panel-profile" class="panel hidden">
+        <div class="profile-card">
+          <h2 id="profile-username"></h2>
+          <div class="profile-stats">
+            <div class="profile-stat">
+              <strong id="profile-total">0</strong>
+              <span>Books in library</span>
+            </div>
+            <div class="profile-stat">
+              <strong id="profile-read">0</strong>
+              <span>Books read</span>
+            </div>
+          </div>
+          <button id="sign-out-btn" type="button" class="sign-out-btn">Sign Out</button>
+        </div>
       </main>
     </div>
     <script type="module" src="/src/main.js"></script>

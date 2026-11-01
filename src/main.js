@@ -3,6 +3,7 @@ import { lookupBook } from "./bookLookup.js";
 import { searchBooksByTitle } from "./bookSearch.js";
 import { createScanner } from "./scanner.js";
 import { normalizeIsbn } from "./isbn.js";
+import { signUp, signIn, signOut, getProfile } from "./auth.js";
 import { ACCESS_CODE } from "./config.js";
 import "./style.css";
 
@@ -13,13 +14,24 @@ const lockForm = document.getElementById("lock-form");
 const lockInput = document.getElementById("lock-input");
 const lockError = document.getElementById("lock-error");
 
+const authScreen = document.getElementById("auth-screen");
+const authForm = document.getElementById("auth-form");
+const authHeading = document.getElementById("auth-heading");
+const authUsernameInput = document.getElementById("auth-username");
+const authPasswordInput = document.getElementById("auth-password");
+const authSubmitBtn = document.getElementById("auth-submit-btn");
+const authError = document.getElementById("auth-error");
+const authToggleBtn = document.getElementById("auth-toggle-btn");
+
 const statusEl = document.getElementById("status");
 const tabScanBtn = document.getElementById("tab-scan");
 const tabLibraryBtn = document.getElementById("tab-library");
 const tabWishlistBtn = document.getElementById("tab-wishlist");
+const tabProfileBtn = document.getElementById("tab-profile");
 const panelScan = document.getElementById("panel-scan");
 const panelLibrary = document.getElementById("panel-library");
 const panelWishlist = document.getElementById("panel-wishlist");
+const panelProfile = document.getElementById("panel-profile");
 const libraryGrid = document.getElementById("library-grid");
 const sortSelect = document.getElementById("sort-select");
 const filterSelect = document.getElementById("filter-select");
@@ -31,6 +43,10 @@ const wishlistForm = document.getElementById("wishlist-form");
 const wishlistInput = document.getElementById("wishlist-input");
 const wishlistResults = document.getElementById("wishlist-results");
 const wishlistGrid = document.getElementById("wishlist-grid");
+const profileUsernameEl = document.getElementById("profile-username");
+const profileTotalEl = document.getElementById("profile-total");
+const profileReadEl = document.getElementById("profile-read");
+const signOutBtn = document.getElementById("sign-out-btn");
 
 const STATUS_LABELS = {
   unread: "Unread",
@@ -50,6 +66,11 @@ const SORTERS = {
 };
 
 let currentBooks = [];
+let currentUser = null;
+let currentUsername = "";
+let authMode = "signin";
+let hasInitialized = false;
+let hasSubscribed = false;
 
 const scanner = createScanner({
   container: document.getElementById("scanner-view"),
@@ -68,9 +89,11 @@ function switchTab(tab) {
   tabScanBtn.classList.toggle("active", tab === "scan");
   tabLibraryBtn.classList.toggle("active", tab === "library");
   tabWishlistBtn.classList.toggle("active", tab === "wishlist");
+  tabProfileBtn.classList.toggle("active", tab === "profile");
   panelScan.classList.toggle("hidden", tab !== "scan");
   panelLibrary.classList.toggle("hidden", tab !== "library");
   panelWishlist.classList.toggle("hidden", tab !== "wishlist");
+  panelProfile.classList.toggle("hidden", tab !== "profile");
 
   if (tab !== "scan") {
     closeScannerUI();
@@ -105,6 +128,7 @@ async function addBookByIsbn(isbn) {
       title: book.title,
       author: book.author,
       cover_url: book.cover_url,
+      user_id: currentUser.id,
     });
     if (error) throw error;
     showStatus(`Added: ${book.title ?? isbn}`, "success");
@@ -229,6 +253,7 @@ async function addSearchResult(result, status, buttons, clickedBtn) {
       author: result.author,
       cover_url: result.cover_url,
       status,
+      user_id: currentUser.id,
     });
     if (error) throw error;
     showStatus(`Added: ${result.title ?? result.isbn}`, "success");
@@ -251,6 +276,13 @@ async function loadLibrary() {
   currentBooks = data;
   renderLibrary(currentBooks);
   renderWishlistTab(currentBooks);
+  renderProfile(currentBooks);
+}
+
+function renderProfile(books) {
+  profileUsernameEl.textContent = currentUsername;
+  profileTotalEl.textContent = books.length;
+  profileReadEl.textContent = books.filter((b) => b.status === "read").length;
 }
 
 function renderWishlistTab(books) {
@@ -432,13 +464,18 @@ function init() {
     scanStartBtn.disabled = true;
     tabLibraryBtn.disabled = true;
     tabWishlistBtn.disabled = true;
+    tabProfileBtn.disabled = true;
     return;
   }
+
+  if (hasInitialized) return;
+  hasInitialized = true;
 
   tabScanBtn.addEventListener("click", () => switchTab("scan"));
   scanStartBtn.addEventListener("click", openScannerUI);
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
   tabWishlistBtn.addEventListener("click", () => switchTab("wishlist"));
+  tabProfileBtn.addEventListener("click", () => switchTab("profile"));
   sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
   filterSelect.addEventListener("change", () => renderLibrary(currentBooks));
   manualForm.addEventListener("submit", (e) => {
@@ -450,16 +487,89 @@ function init() {
     e.preventDefault();
     if (wishlistInput.value.trim()) handleWishlistSearch(wishlistInput.value.trim());
   });
+  signOutBtn.addEventListener("click", handleSignOut);
 
-  loadLibrary();
-  subscribeToLibrary();
+  if (!hasSubscribed) {
+    subscribeToLibrary();
+    hasSubscribed = true;
+  }
+}
+
+async function showApp(user) {
+  currentUser = user;
+  try {
+    currentUsername = (await getProfile(user.id)).username;
+  } catch {
+    currentUsername = "";
+  }
+  authScreen.classList.add("hidden");
+  appEl.classList.remove("hidden");
+  init();
+  await loadLibrary();
+}
+
+function showAuthScreen() {
+  appEl.classList.add("hidden");
+  authScreen.classList.remove("hidden");
+}
+
+async function handleSignOut() {
+  await signOut();
+  currentUser = null;
+  currentUsername = "";
+  authUsernameInput.value = "";
+  authPasswordInput.value = "";
+  showAuthScreen();
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  authError.textContent = "";
+  if (mode === "signup") {
+    authHeading.textContent = "Sign Up";
+    authSubmitBtn.textContent = "Sign Up";
+    authToggleBtn.textContent = "Already have an account? Sign in";
+    authPasswordInput.autocomplete = "new-password";
+  } else {
+    authHeading.textContent = "Sign In";
+    authSubmitBtn.textContent = "Sign In";
+    authToggleBtn.textContent = "Need an account? Sign up";
+    authPasswordInput.autocomplete = "current-password";
+  }
+}
+
+authToggleBtn.addEventListener("click", () => setAuthMode(authMode === "signin" ? "signup" : "signin"));
+
+authForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = authUsernameInput.value.trim();
+  const password = authPasswordInput.value;
+  authError.textContent = "";
+  authSubmitBtn.disabled = true;
+  try {
+    const data = authMode === "signin" ? await signIn(username, password) : await signUp(username, password);
+    authPasswordInput.value = "";
+    await showApp(data.user);
+  } catch (err) {
+    authError.textContent = err.message;
+  } finally {
+    authSubmitBtn.disabled = false;
+  }
+});
+
+async function afterUnlock() {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    await showApp(data.session.user);
+  } else {
+    showAuthScreen();
+  }
 }
 
 function unlock() {
   localStorage.setItem(UNLOCK_STORAGE_KEY, "true");
   lockScreen.classList.add("hidden");
-  appEl.classList.remove("hidden");
-  init();
+  afterUnlock();
 }
 
 if (localStorage.getItem(UNLOCK_STORAGE_KEY) === "true") {

@@ -17,6 +17,10 @@ by Supabase for storage and realtime sync.
   from any device.
 - **Wishlist tab**: just the books with status `wishlisted` -- books you
   want but don't have yet.
+- **Sign in**: each person gets their own account (username + password)
+  and their own private library -- nobody sees anyone else's books.
+- **Profile tab**: shows your username, total books, and books read, plus
+  a Sign Out button.
 
 ## 1. Create a Supabase project
 
@@ -25,8 +29,20 @@ by Supabase for storage and realtime sync.
 2. Once it's ready, open the **SQL Editor** and run:
 
    ```sql
+   create table profiles (
+     id uuid primary key references auth.users(id) on delete cascade,
+     username text not null,
+     username_normalized text not null unique,
+     created_at timestamptz not null default now()
+   );
+
+   alter table profiles enable row level security;
+   create policy "profiles are viewable by everyone" on profiles for select using (true);
+   create policy "users can insert their own profile" on profiles for insert with check (auth.uid() = id);
+
    create table books (
      id bigint generated always as identity primary key,
+     user_id uuid not null references auth.users(id) on delete cascade,
      isbn text not null,
      title text,
      author text,
@@ -38,20 +54,22 @@ by Supabase for storage and realtime sync.
 
    alter table books enable row level security;
 
-   create policy "public read" on books for select using (true);
-   create policy "public insert" on books for insert with check (true);
-   create policy "public update" on books for update using (true) with check (true);
-   create policy "public delete" on books for delete using (true);
+   create policy "users can read own books" on books for select using (auth.uid() = user_id);
+   create policy "users can insert own books" on books for insert with check (auth.uid() = user_id);
+   create policy "users can update own books" on books for update using (auth.uid() = user_id);
+   create policy "users can delete own books" on books for delete using (auth.uid() = user_id);
 
    alter publication supabase_realtime add table books;
    ```
 
-   These RLS policies make the table publicly readable/writable, which is
-   fine for a personal single-user app using only the anon key. If you ever
-   want to lock this down to just you, swap these for policies that check
-   `auth.uid()` and add Supabase Auth.
+   Each row is tied to the account that owns it (`auth.uid() = user_id`), so
+   one person's library is invisible to everyone else.
 
-3. Go to **Project Settings -> API** and copy the **Project URL** and the
+3. Go to **Authentication -> Providers -> Email** and turn **off** "Confirm
+   email". The app uses a made-up email address behind the scenes (see
+   "Sign in" below) that can never receive a real confirmation link, so
+   sign-up would otherwise get stuck.
+4. Go to **Project Settings -> API** and copy the **Project URL** and the
    **anon public** key.
 
 ### Already created the table before the reading-status feature existed?
@@ -85,6 +103,56 @@ alter table books add constraint books_status_check
 
 (The constraint is widened first so the rename update doesn't get rejected
 by the old constraint, then narrowed back down to the final set.)
+
+### Already have a shared library, adding sign-in now?
+
+This changes the library from "everyone shares one list" to "each account
+has its own private list," so it takes a few steps in order:
+
+1. Add the `profiles` table and a (temporarily nullable) owner column on
+   `books`, and swap the old public policies for per-user ones:
+
+   ```sql
+   create table profiles (
+     id uuid primary key references auth.users(id) on delete cascade,
+     username text not null,
+     username_normalized text not null unique,
+     created_at timestamptz not null default now()
+   );
+
+   alter table profiles enable row level security;
+   create policy "profiles are viewable by everyone" on profiles for select using (true);
+   create policy "users can insert their own profile" on profiles for insert with check (auth.uid() = id);
+
+   alter table books add column user_id uuid references auth.users(id) on delete cascade;
+
+   drop policy "public read" on books;
+   drop policy "public insert" on books;
+   drop policy "public update" on books;
+   drop policy "public delete" on books;
+
+   create policy "users can read own books" on books for select using (auth.uid() = user_id);
+   create policy "users can insert own books" on books for insert with check (auth.uid() = user_id);
+   create policy "users can update own books" on books for update using (auth.uid() = user_id);
+   create policy "users can delete own books" on books for delete using (auth.uid() = user_id);
+   ```
+
+2. Go to **Authentication -> Providers -> Email** and turn **off** "Confirm
+   email" (see the note under step 1 above for why).
+3. Push/deploy the app, open it, and **sign up** for an account with the
+   username you want to own the existing books (e.g. `SarcasmTree`).
+4. Back in the SQL Editor, assign every existing (ownerless) book to that
+   account, then lock the column down now that every row has an owner:
+
+   ```sql
+   update books set user_id = (select id from profiles where username_normalized = 'sarcasmtree')
+   where user_id is null;
+
+   alter table books alter column user_id set not null;
+   ```
+
+   (Use the lowercase, letters/numbers-only form of whatever username you
+   signed up with -- that's what `username_normalized` stores.)
 
 ## 2. Configure the app
 

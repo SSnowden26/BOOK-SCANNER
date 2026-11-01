@@ -586,3 +586,79 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* ---------- Auth screen ---------- */
+
+#auth-screen .auth-toggle-btn {
+  width: auto;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px;
+}
+
+#auth-screen .auth-toggle-btn:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
+/* ---------- Profile tab ---------- */
+
+.profile-card {
+  max-width: 400px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.profile-card h2 {
+  margin: 0 0 24px;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.profile-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 16px 8px;
+}
+
+.profile-stat strong {
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.profile-stat span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sign-out-btn {
+  width: 100%;
+  padding: 11px 18px;
+  border-radius: 10px;
+  border: 1.5px solid #ef44444d;
+  background: transparent;
+  color: #ef4444;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sign-out-btn:hover {
+  background: #ef44441a;
+}
