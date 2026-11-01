@@ -245,6 +245,29 @@ body {
 
 /* ---------- Scan tab ---------- */
 
+.scan-start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 480px;
+  min-height: 320px;
+  margin: 0 auto;
+  border-radius: 16px;
+  border: 1.5px dashed var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.scan-start-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 #scanner-view {
   width: 100%;
   max-width: 480px;
@@ -298,12 +321,6 @@ body {
     transform: scale(1);
     opacity: 0;
   }
-}
-
-.hint {
-  text-align: center;
-  color: var(--text-muted);
-  margin-top: 14px;
 }
 
 .or-divider {

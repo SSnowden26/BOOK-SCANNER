@@ -25,6 +25,8 @@ const sortSelect = document.getElementById("sort-select");
 const filterSelect = document.getElementById("filter-select");
 const manualForm = document.getElementById("manual-form");
 const manualInput = document.getElementById("manual-input");
+const scanStartBtn = document.getElementById("scan-start-btn");
+const scannerView = document.getElementById("scanner-view");
 const wishlistForm = document.getElementById("wishlist-form");
 const wishlistInput = document.getElementById("wishlist-input");
 const wishlistResults = document.getElementById("wishlist-results");
@@ -70,24 +72,27 @@ function switchTab(tab) {
   panelLibrary.classList.toggle("hidden", tab !== "library");
   panelWishlist.classList.toggle("hidden", tab !== "wishlist");
 
-  if (tab === "scan") {
-    startScanner();
-  } else {
-    stopScanner();
+  if (tab !== "scan") {
+    closeScannerUI();
   }
 }
 
-async function startScanner() {
+async function openScannerUI() {
+  scanStartBtn.classList.add("hidden");
+  scannerView.classList.remove("hidden");
   try {
     await scanner.start();
     showStatus("Point the camera at a barcode.", "info");
   } catch (err) {
     showStatus(`Camera error: ${err.message || err}`, "error");
+    closeScannerUI();
   }
 }
 
-function stopScanner() {
+function closeScannerUI() {
   scanner.stop();
+  scannerView.classList.add("hidden");
+  scanStartBtn.classList.remove("hidden");
 }
 
 async function addBookByIsbn(isbn) {
@@ -123,6 +128,7 @@ async function onScanSuccess(decodedText) {
   if (lastSeen && Date.now() - lastSeen < 5000) return;
   recentlyScanned.set(isbn, Date.now());
 
+  closeScannerUI();
   await addBookByIsbn(isbn);
 }
 
@@ -423,12 +429,14 @@ function init() {
       "error"
     );
     tabScanBtn.disabled = true;
+    scanStartBtn.disabled = true;
     tabLibraryBtn.disabled = true;
     tabWishlistBtn.disabled = true;
     return;
   }
 
   tabScanBtn.addEventListener("click", () => switchTab("scan"));
+  scanStartBtn.addEventListener("click", openScannerUI);
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
   tabWishlistBtn.addEventListener("click", () => switchTab("wishlist"));
   sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
