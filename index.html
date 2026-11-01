@@ -31,6 +31,19 @@
       <main id="panel-scan" class="panel hidden">
         <div id="scanner-view"></div>
         <p class="hint">Point your phone's camera at a book's barcode (ISBN).</p>
+
+        <p class="or-divider">or</p>
+
+        <form id="manual-form" class="manual-form">
+          <input
+            id="manual-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="Type ISBN (10 or 13 digits)"
+          />
+          <button type="submit">Add</button>
+        </form>
       </main>
 
       <main id="panel-library" class="panel">

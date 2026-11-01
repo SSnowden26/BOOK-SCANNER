@@ -9,4 +9,5 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // NOT real security (the code ships inside the public JS bundle, same as
 // the Supabase anon key above). Change this to whatever code you want to
 // share with people you intend to give access to.
-export const ACCESS_CODE = "CHANGE-ME";
+export const ACCESS_CODE = "110125";
+

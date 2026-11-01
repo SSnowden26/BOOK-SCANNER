@@ -1,6 +1,7 @@
 import { supabase, isConfigured } from "./supabaseClient.js";
 import { lookupBook } from "./bookLookup.js";
 import { createScanner } from "./scanner.js";
+import { normalizeIsbn } from "./isbn.js";
 import { ACCESS_CODE } from "./config.js";
 import "./style.css";
 
@@ -18,6 +19,8 @@ const panelScan = document.getElementById("panel-scan");
 const panelLibrary = document.getElementById("panel-library");
 const libraryGrid = document.getElementById("library-grid");
 const sortSelect = document.getElementById("sort-select");
+const manualForm = document.getElementById("manual-form");
+const manualInput = document.getElementById("manual-input");
 
 const STATUS_LABELS = { unread: "Unread", reading: "Currently reading", read: "Read" };
 const STATUS_ORDER = { reading: 0, unread: 1, read: 2 };
@@ -72,34 +75,7 @@ function stopScanner() {
   scanner.stop();
 }
 
-// Validates the check digit on an EAN-13 or UPC-A barcode. Catches the
-// occasional misread digit from the camera decoder before it's looked up.
-function isValidBarcode(digits) {
-  if (!/^\d{12}$|^\d{13}$/.test(digits)) return false;
-  const len = digits.length;
-  let sum = 0;
-  for (let i = 0; i < len - 1; i++) {
-    const n = Number(digits[i]);
-    const fromEnd = len - 1 - i; // weight pattern is defined from the check digit backwards
-    sum += fromEnd % 2 === 1 ? n * 3 : n;
-  }
-  const checkDigit = (10 - (sum % 10)) % 10;
-  return checkDigit === Number(digits[len - 1]);
-}
-
-async function onScanSuccess(decodedText) {
-  const isbn = decodedText.replace(/[^0-9Xx]/g, "");
-  if (isProcessing) return;
-
-  if (!isValidBarcode(isbn)) {
-    showStatus(`Misread (${isbn}) — try again.`, "error");
-    return;
-  }
-
-  const lastSeen = recentlyScanned.get(isbn);
-  if (lastSeen && Date.now() - lastSeen < 5000) return;
-  recentlyScanned.set(isbn, Date.now());
-
+async function addBookByIsbn(isbn) {
   isProcessing = true;
   showStatus(`Looking up ${isbn}...`, "info");
   try {
@@ -117,6 +93,34 @@ async function onScanSuccess(decodedText) {
   } finally {
     isProcessing = false;
   }
+}
+
+async function onScanSuccess(decodedText) {
+  if (isProcessing) return;
+
+  const isbn = normalizeIsbn(decodedText);
+  if (!isbn) {
+    showStatus(`Misread (${decodedText}) — try again.`, "error");
+    return;
+  }
+
+  const lastSeen = recentlyScanned.get(isbn);
+  if (lastSeen && Date.now() - lastSeen < 5000) return;
+  recentlyScanned.set(isbn, Date.now());
+
+  await addBookByIsbn(isbn);
+}
+
+async function handleManualAdd(rawInput) {
+  if (isProcessing) return;
+
+  const isbn = normalizeIsbn(rawInput);
+  if (!isbn) {
+    showStatus(`Invalid ISBN: ${rawInput}`, "error");
+    return;
+  }
+
+  await addBookByIsbn(isbn);
 }
 
 async function loadLibrary() {
@@ -160,8 +164,12 @@ function bookCard(book) {
   info.innerHTML = `
     <strong>${escapeHtml(book.title ?? "Unknown title")}</strong>
     <span>${escapeHtml(book.author ?? "")}</span>
-    <span class="isbn">${escapeHtml(book.isbn)}</span>
   `;
+
+  const isbnRow = document.createElement("div");
+  isbnRow.className = "isbn-row";
+  renderIsbnView(isbnRow, book);
+  info.appendChild(isbnRow);
 
   const statusSelect = document.createElement("select");
   statusSelect.className = "status-select";
@@ -186,6 +194,72 @@ function bookCard(book) {
 async function updateStatus(id, status) {
   const { error } = await supabase.from("books").update({ status }).eq("id", id);
   if (error) showStatus(error.message, "error");
+}
+
+function renderIsbnView(isbnRow, book) {
+  isbnRow.innerHTML = "";
+
+  const isbnText = document.createElement("span");
+  isbnText.className = "isbn";
+  isbnText.textContent = book.isbn;
+
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "edit-isbn-btn";
+  editBtn.textContent = "Edit";
+  editBtn.addEventListener("click", () => renderIsbnEdit(isbnRow, book));
+
+  isbnRow.append(isbnText, editBtn);
+}
+
+function renderIsbnEdit(isbnRow, book) {
+  isbnRow.innerHTML = "";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.className = "isbn-edit-input";
+  input.value = book.isbn;
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "isbn-save-btn";
+  saveBtn.textContent = "Save";
+  saveBtn.addEventListener("click", async () => {
+    const isbn = normalizeIsbn(input.value);
+    if (!isbn) {
+      showStatus(`Invalid ISBN: ${input.value}`, "error");
+      return;
+    }
+    saveBtn.disabled = true;
+    showStatus(`Updating to ${isbn}...`, "info");
+    try {
+      const updated = await lookupBook(isbn);
+      const { error } = await supabase
+        .from("books")
+        .update({
+          isbn,
+          title: updated.title,
+          author: updated.author,
+          cover_url: updated.cover_url,
+        })
+        .eq("id", book.id);
+      if (error) throw error;
+      showStatus(`Updated: ${updated.title ?? isbn}`, "success");
+    } catch (err) {
+      showStatus(`Failed to update: ${err.message}`, "error");
+      saveBtn.disabled = false;
+    }
+  });
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "isbn-cancel-btn";
+  cancelBtn.textContent = "Cancel";
+  cancelBtn.addEventListener("click", () => renderIsbnView(isbnRow, book));
+
+  isbnRow.append(input, saveBtn, cancelBtn);
+  input.focus();
 }
 
 function escapeHtml(str) {
@@ -220,6 +294,11 @@ function init() {
   tabScanBtn.addEventListener("click", () => switchTab("scan"));
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
   sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
+  manualForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleManualAdd(manualInput.value);
+    manualInput.value = "";
+  });
 
   loadLibrary();
   subscribeToLibrary();
