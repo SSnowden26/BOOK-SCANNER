@@ -44,6 +44,7 @@ const signOutBtn = document.getElementById("sign-out-btn");
 const lookupForm = document.getElementById("lookup-form");
 const lookupInput = document.getElementById("lookup-input");
 const lookupResults = document.getElementById("lookup-results");
+const usernameSuggestions = document.getElementById("username-suggestions");
 const lookupInfo = document.getElementById("lookup-info");
 const lookupUsernameEl = document.getElementById("lookup-username");
 const lookupTotalEl = document.getElementById("lookup-total");
@@ -286,6 +287,35 @@ function renderProfile(books) {
   profileUsernameEl.textContent = currentUsername;
   profileTotalEl.textContent = books.length;
   profileReadEl.textContent = books.filter((b) => b.status === "read").length;
+}
+
+let suggestTimeout = null;
+
+function queueUsernameSuggestions(rawValue) {
+  clearTimeout(suggestTimeout);
+  if (!rawValue.trim()) {
+    usernameSuggestions.innerHTML = "";
+    return;
+  }
+  suggestTimeout = setTimeout(() => fetchUsernameSuggestions(rawValue), 200);
+}
+
+async function fetchUsernameSuggestions(rawValue) {
+  const normalized = normalizeUsername(rawValue);
+  if (!normalized) {
+    usernameSuggestions.innerHTML = "";
+    return;
+  }
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("username")
+    .ilike("username_normalized", `${normalized}%`)
+    .order("username")
+    .limit(8);
+  if (error || !data) return;
+  usernameSuggestions.innerHTML = data
+    .map((p) => `<option value="${escapeHtml(p.username)}"></option>`)
+    .join("");
 }
 
 async function handleLookup(rawUsername) {
@@ -571,6 +601,7 @@ function init() {
     e.preventDefault();
     if (lookupInput.value.trim()) handleLookup(lookupInput.value.trim());
   });
+  lookupInput.addEventListener("input", () => queueUsernameSuggestions(lookupInput.value));
 
   if (!hasSubscribed) {
     subscribeToLibrary();

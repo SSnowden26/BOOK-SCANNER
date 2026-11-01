@@ -124,7 +124,14 @@
         <div class="lookup-card">
           <h3>Look up a wishlist</h3>
           <form id="lookup-form" class="manual-form">
-            <input id="lookup-input" type="text" autocomplete="off" placeholder="Username" />
+            <input
+              id="lookup-input"
+              type="text"
+              autocomplete="off"
+              placeholder="Username"
+              list="username-suggestions"
+            />
+            <datalist id="username-suggestions"></datalist>
             <button type="submit">Search</button>
           </form>
 
