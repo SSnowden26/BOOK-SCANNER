@@ -26,7 +26,8 @@ by Supabase for storage and realtime sync.
      title text,
      author text,
      cover_url text,
-     status text not null default 'unread' check (status in ('unread', 'reading', 'read')),
+     status text not null default 'unread'
+       check (status in ('unread', 'reading', 'read', 'owned', 'unowned')),
      created_at timestamptz not null default now()
    );
 
@@ -57,6 +58,17 @@ alter table books add column status text not null default 'unread'
   check (status in ('unread', 'reading', 'read'));
 
 create policy "public update" on books for update using (true) with check (true);
+```
+
+### Already have the status column, just need Owned/Unowned added?
+
+The check constraint has to be dropped and recreated to allow the new
+values:
+
+```sql
+alter table books drop constraint books_status_check;
+alter table books add constraint books_status_check
+  check (status in ('unread', 'reading', 'read', 'owned', 'unowned'));
 ```
 
 ## 2. Configure the app

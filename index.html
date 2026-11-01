@@ -48,6 +48,16 @@
 
       <main id="panel-library" class="panel">
         <div class="library-toolbar">
+          <label for="filter-select">Filter</label>
+          <select id="filter-select">
+            <option value="all">All</option>
+            <option value="unread">Unread</option>
+            <option value="reading">Currently reading</option>
+            <option value="read">Read</option>
+            <option value="owned">Owned</option>
+            <option value="unowned">Unowned</option>
+          </select>
+
           <label for="sort-select">Sort by</label>
           <select id="sort-select">
             <option value="added_desc">Date added (newest)</option>

@@ -19,11 +19,18 @@ const panelScan = document.getElementById("panel-scan");
 const panelLibrary = document.getElementById("panel-library");
 const libraryGrid = document.getElementById("library-grid");
 const sortSelect = document.getElementById("sort-select");
+const filterSelect = document.getElementById("filter-select");
 const manualForm = document.getElementById("manual-form");
 const manualInput = document.getElementById("manual-input");
 
-const STATUS_LABELS = { unread: "Unread", reading: "Currently reading", read: "Read" };
-const STATUS_ORDER = { reading: 0, unread: 1, read: 2 };
+const STATUS_LABELS = {
+  unread: "Unread",
+  reading: "Currently reading",
+  read: "Read",
+  owned: "Owned",
+  unowned: "Unowned",
+};
+const STATUS_ORDER = { reading: 0, unread: 1, read: 2, owned: 3, unowned: 4 };
 
 const SORTERS = {
   added_desc: (a, b) => new Date(b.created_at) - new Date(a.created_at),
@@ -138,11 +145,19 @@ async function loadLibrary() {
 
 function renderLibrary(books) {
   libraryGrid.innerHTML = "";
-  if (books.length === 0) {
-    libraryGrid.innerHTML = `<p class="empty">No books scanned yet.</p>`;
+
+  const filtered =
+    filterSelect.value === "all" ? books : books.filter((b) => b.status === filterSelect.value);
+
+  if (filtered.length === 0) {
+    libraryGrid.innerHTML =
+      books.length === 0
+        ? `<p class="empty">No books scanned yet.</p>`
+        : `<p class="empty">No books match this filter.</p>`;
     return;
   }
-  const sorted = [...books].sort(SORTERS[sortSelect.value]);
+
+  const sorted = [...filtered].sort(SORTERS[sortSelect.value]);
   for (const book of sorted) {
     libraryGrid.appendChild(bookCard(book));
   }
@@ -294,6 +309,7 @@ function init() {
   tabScanBtn.addEventListener("click", () => switchTab("scan"));
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
   sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
+  filterSelect.addEventListener("change", () => renderLibrary(currentBooks));
   manualForm.addEventListener("submit", (e) => {
     e.preventDefault();
     handleManualAdd(manualInput.value);
