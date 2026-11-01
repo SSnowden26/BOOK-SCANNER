@@ -1,6 +1,17 @@
 :root {
   color-scheme: light dark;
   font-family: system-ui, -apple-system, sans-serif;
+  --select-bg: #ffffff;
+  --select-color: #1d1d1f;
+  --select-border: #8c8c8c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --select-bg: #2c2c2e;
+    --select-color: #f5f5f7;
+    --select-border: #6c6c70;
+  }
 }
 
 * {
@@ -124,11 +135,13 @@ body {
 }
 
 .library-toolbar select {
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid #8884;
-  background: transparent;
-  color: inherit;
+  border: 1.5px solid var(--select-border);
+  background: var(--select-bg);
+  color: var(--select-color);
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .library-grid {
@@ -174,12 +187,13 @@ body {
 }
 
 .status-select {
-  padding: 6px 8px;
+  padding: 8px;
   border-radius: 6px;
-  border: 1px solid #8884;
-  background: transparent;
-  color: inherit;
-  font-size: 0.85rem;
+  border: 1.5px solid var(--select-border);
+  background: var(--select-bg);
+  color: var(--select-color);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .delete-btn {

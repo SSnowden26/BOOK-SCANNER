@@ -213,7 +213,6 @@ function init() {
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
   sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
 
-  startScanner();
   loadLibrary();
   subscribeToLibrary();
 }

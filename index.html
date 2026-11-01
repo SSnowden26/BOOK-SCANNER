@@ -11,19 +11,19 @@
       <header class="topbar">
         <h1>Book Scanner</h1>
         <nav class="tabs">
-          <button id="tab-scan" class="tab-btn active">Scan</button>
-          <button id="tab-library" class="tab-btn">Library</button>
+          <button id="tab-scan" class="tab-btn">Scan</button>
+          <button id="tab-library" class="tab-btn active">Library</button>
         </nav>
       </header>
 
       <div id="status" class="status"></div>
 
-      <main id="panel-scan" class="panel">
+      <main id="panel-scan" class="panel hidden">
         <div id="scanner-view"></div>
         <p class="hint">Point your phone's camera at a book's barcode (ISBN).</p>
       </main>
 
-      <main id="panel-library" class="panel hidden">
+      <main id="panel-library" class="panel">
         <div class="library-toolbar">
           <label for="sort-select">Sort by</label>
           <select id="sort-select">
