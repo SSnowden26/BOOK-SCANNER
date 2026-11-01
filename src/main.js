@@ -38,11 +38,7 @@ async function startScanner() {
   html5QrCode = new Html5Qrcode("scanner-view");
   try {
     await html5QrCode.start(
-      {
-        facingMode: "environment",
-        width: { min: 1280, ideal: 1920 },
-        height: { min: 720, ideal: 1080 },
-      },
+      { facingMode: "environment" },
       {
         fps: 15,
         qrbox: (viewfinderWidth, viewfinderHeight) => {
@@ -54,6 +50,11 @@ async function startScanner() {
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.UPC_A,
         ],
+        videoConstraints: {
+          facingMode: "environment",
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+        },
       },
       onScanSuccess
     );
