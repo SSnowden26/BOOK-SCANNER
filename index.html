@@ -24,6 +24,16 @@
       </main>
 
       <main id="panel-library" class="panel hidden">
+        <div class="library-toolbar">
+          <label for="sort-select">Sort by</label>
+          <select id="sort-select">
+            <option value="added_desc">Date added (newest)</option>
+            <option value="added_asc">Date added (oldest)</option>
+            <option value="title_asc">Title (A-Z)</option>
+            <option value="author_asc">Author (A-Z)</option>
+            <option value="status">Status</option>
+          </select>
+        </div>
         <div id="library-grid" class="library-grid"></div>
       </main>
     </div>

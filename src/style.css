@@ -115,6 +115,22 @@ body {
   margin-top: 12px;
 }
 
+.library-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.library-toolbar select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #8884;
+  background: transparent;
+  color: inherit;
+}
+
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -155,6 +171,15 @@ body {
 .book-info .isbn {
   font-size: 0.75rem;
   color: #888;
+}
+
+.status-select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #8884;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
 }
 
 .delete-btn {

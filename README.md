@@ -26,6 +26,7 @@ by Supabase for storage and realtime sync.
      title text,
      author text,
      cover_url text,
+     status text not null default 'unread' check (status in ('unread', 'reading', 'read')),
      created_at timestamptz not null default now()
    );
 
@@ -33,6 +34,7 @@ by Supabase for storage and realtime sync.
 
    create policy "public read" on books for select using (true);
    create policy "public insert" on books for insert with check (true);
+   create policy "public update" on books for update using (true) with check (true);
    create policy "public delete" on books for delete using (true);
 
    alter publication supabase_realtime add table books;
@@ -45,6 +47,17 @@ by Supabase for storage and realtime sync.
 
 3. Go to **Project Settings -> API** and copy the **Project URL** and the
    **anon public** key.
+
+### Already created the table before the reading-status feature existed?
+
+Run this in the SQL Editor to add it without losing your existing books:
+
+```sql
+alter table books add column status text not null default 'unread'
+  check (status in ('unread', 'reading', 'read'));
+
+create policy "public update" on books for update using (true) with check (true);
+```
 
 ## 2. Configure the app
 

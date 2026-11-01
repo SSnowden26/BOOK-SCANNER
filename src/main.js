@@ -9,6 +9,20 @@ const tabLibraryBtn = document.getElementById("tab-library");
 const panelScan = document.getElementById("panel-scan");
 const panelLibrary = document.getElementById("panel-library");
 const libraryGrid = document.getElementById("library-grid");
+const sortSelect = document.getElementById("sort-select");
+
+const STATUS_LABELS = { unread: "Unread", reading: "Currently reading", read: "Read" };
+const STATUS_ORDER = { reading: 0, unread: 1, read: 2 };
+
+const SORTERS = {
+  added_desc: (a, b) => new Date(b.created_at) - new Date(a.created_at),
+  added_asc: (a, b) => new Date(a.created_at) - new Date(b.created_at),
+  title_asc: (a, b) => (a.title ?? "").localeCompare(b.title ?? ""),
+  author_asc: (a, b) => (a.author ?? "").localeCompare(b.author ?? ""),
+  status: (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
+};
+
+let currentBooks = [];
 
 const scanner = createScanner({
   container: document.getElementById("scanner-view"),
@@ -106,7 +120,8 @@ async function loadLibrary() {
     showStatus(error.message, "error");
     return;
   }
-  renderLibrary(data);
+  currentBooks = data;
+  renderLibrary(currentBooks);
 }
 
 function renderLibrary(books) {
@@ -115,7 +130,8 @@ function renderLibrary(books) {
     libraryGrid.innerHTML = `<p class="empty">No books scanned yet.</p>`;
     return;
   }
-  for (const book of books) {
+  const sorted = [...books].sort(SORTERS[sortSelect.value]);
+  for (const book of sorted) {
     libraryGrid.appendChild(bookCard(book));
   }
 }
@@ -139,13 +155,29 @@ function bookCard(book) {
     <span class="isbn">${escapeHtml(book.isbn)}</span>
   `;
 
+  const statusSelect = document.createElement("select");
+  statusSelect.className = "status-select";
+  for (const [value, label] of Object.entries(STATUS_LABELS)) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    if (value === book.status) option.selected = true;
+    statusSelect.appendChild(option);
+  }
+  statusSelect.addEventListener("change", () => updateStatus(book.id, statusSelect.value));
+
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "delete-btn";
   deleteBtn.textContent = "Remove";
   deleteBtn.addEventListener("click", () => deleteBook(book.id));
 
-  card.append(img, info, deleteBtn);
+  card.append(img, info, statusSelect, deleteBtn);
   return card;
+}
+
+async function updateStatus(id, status) {
+  const { error } = await supabase.from("books").update({ status }).eq("id", id);
+  if (error) showStatus(error.message, "error");
 }
 
 function escapeHtml(str) {
@@ -179,6 +211,7 @@ function init() {
 
   tabScanBtn.addEventListener("click", () => switchTab("scan"));
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
+  sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
 
   startScanner();
   loadLibrary();
