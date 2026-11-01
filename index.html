@@ -7,7 +7,17 @@
     <title>Book Scanner</title>
   </head>
   <body>
-    <div id="app">
+    <div id="lock-screen" class="lock-screen">
+      <form id="lock-form">
+        <h2>Book Scanner</h2>
+        <p>Enter the access code to continue.</p>
+        <input id="lock-input" type="password" autocomplete="off" placeholder="Access code" />
+        <button type="submit">Unlock</button>
+        <p id="lock-error" class="lock-error"></p>
+      </form>
+    </div>
+
+    <div id="app" class="hidden">
       <header class="topbar">
         <h1>Book Scanner</h1>
         <nav class="tabs">

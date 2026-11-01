@@ -18,6 +18,61 @@
   box-sizing: border-box;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.lock-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.lock-screen form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.lock-screen h2 {
+  margin: 0;
+}
+
+.lock-screen p {
+  margin: 0;
+  color: #888;
+}
+
+.lock-screen input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--select-border);
+  background: var(--select-bg);
+  color: var(--select-color);
+  font-size: 1rem;
+}
+
+.lock-screen button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.lock-error {
+  color: #dc2626;
+  min-height: 1.2em;
+  font-size: 0.9rem;
+}
+
 body {
   margin: 0;
   min-height: 100vh;

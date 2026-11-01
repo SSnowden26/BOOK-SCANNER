@@ -1,7 +1,15 @@
 import { supabase, isConfigured } from "./supabaseClient.js";
 import { lookupBook } from "./bookLookup.js";
 import { createScanner } from "./scanner.js";
+import { ACCESS_CODE } from "./config.js";
 import "./style.css";
+
+const UNLOCK_STORAGE_KEY = "book-scanner-unlocked";
+const appEl = document.getElementById("app");
+const lockScreen = document.getElementById("lock-screen");
+const lockForm = document.getElementById("lock-form");
+const lockInput = document.getElementById("lock-input");
+const lockError = document.getElementById("lock-error");
 
 const statusEl = document.getElementById("status");
 const tabScanBtn = document.getElementById("tab-scan");
@@ -217,4 +225,23 @@ function init() {
   subscribeToLibrary();
 }
 
-init();
+function unlock() {
+  localStorage.setItem(UNLOCK_STORAGE_KEY, "true");
+  lockScreen.classList.add("hidden");
+  appEl.classList.remove("hidden");
+  init();
+}
+
+if (localStorage.getItem(UNLOCK_STORAGE_KEY) === "true") {
+  unlock();
+} else {
+  lockForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (lockInput.value === ACCESS_CODE) {
+      unlock();
+    } else {
+      lockError.textContent = "Incorrect code.";
+      lockInput.value = "";
+    }
+  });
+}
