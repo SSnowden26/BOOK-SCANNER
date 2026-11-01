@@ -253,6 +253,7 @@ function renderLibrary(books) {
 function bookCard(book) {
   const card = document.createElement("div");
   card.className = "book-card";
+  card.dataset.status = book.status;
 
   const img = document.createElement("img");
   img.src = book.cover_url || "";
@@ -282,7 +283,10 @@ function bookCard(book) {
     if (value === book.status) option.selected = true;
     statusSelect.appendChild(option);
   }
-  statusSelect.addEventListener("change", () => updateStatus(book.id, statusSelect.value));
+  statusSelect.addEventListener("change", () => {
+    card.dataset.status = statusSelect.value;
+    updateStatus(book.id, statusSelect.value);
+  });
 
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "delete-btn";
