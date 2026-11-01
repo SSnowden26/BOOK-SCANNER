@@ -166,12 +166,6 @@ export const SUPABASE_ANON_KEY = "eyJ...";
 The anon key is meant to be public in client-side code — access is enforced
 by the RLS policies above, not by hiding the key.
 
-Also set `ACCESS_CODE` to whatever shared code you want to give out. Anyone
-who opens the deployed link has to enter this once (it's then remembered in
-their browser) before the app loads. This is a casual gate only — the code
-ships inside the public JS bundle, so it stops accidental link-sharing, not
-a determined snooper.
-
 ## 3. Run it locally
 
 ```bash

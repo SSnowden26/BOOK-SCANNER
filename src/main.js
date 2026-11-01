@@ -4,15 +4,9 @@ import { searchBooksByTitle } from "./bookSearch.js";
 import { createScanner } from "./scanner.js";
 import { normalizeIsbn } from "./isbn.js";
 import { signUp, signIn, signOut, getProfile } from "./auth.js";
-import { ACCESS_CODE } from "./config.js";
 import "./style.css";
 
-const UNLOCK_STORAGE_KEY = "book-scanner-unlocked";
 const appEl = document.getElementById("app");
-const lockScreen = document.getElementById("lock-screen");
-const lockForm = document.getElementById("lock-form");
-const lockInput = document.getElementById("lock-input");
-const lockError = document.getElementById("lock-error");
 
 const authScreen = document.getElementById("auth-screen");
 const authForm = document.getElementById("auth-form");
@@ -557,7 +551,7 @@ authForm.addEventListener("submit", async (e) => {
   }
 });
 
-async function afterUnlock() {
+async function checkSession() {
   const { data } = await supabase.auth.getSession();
   if (data.session) {
     await showApp(data.session.user);
@@ -566,22 +560,4 @@ async function afterUnlock() {
   }
 }
 
-function unlock() {
-  localStorage.setItem(UNLOCK_STORAGE_KEY, "true");
-  lockScreen.classList.add("hidden");
-  afterUnlock();
-}
-
-if (localStorage.getItem(UNLOCK_STORAGE_KEY) === "true") {
-  unlock();
-} else {
-  lockForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (lockInput.value === ACCESS_CODE) {
-      unlock();
-    } else {
-      lockError.textContent = "Incorrect code.";
-      lockInput.value = "";
-    }
-  });
-}
+checkSession();
