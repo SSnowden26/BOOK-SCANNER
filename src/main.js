@@ -76,9 +76,29 @@ async function stopScanner() {
   html5QrCode = null;
 }
 
+// Validates the check digit on an EAN-13 or UPC-A barcode. Catches the
+// occasional misread digit from the camera decoder before it's looked up.
+function isValidBarcode(digits) {
+  if (!/^\d{12}$|^\d{13}$/.test(digits)) return false;
+  const len = digits.length;
+  let sum = 0;
+  for (let i = 0; i < len - 1; i++) {
+    const n = Number(digits[i]);
+    const fromEnd = len - 1 - i; // weight pattern is defined from the check digit backwards
+    sum += fromEnd % 2 === 1 ? n * 3 : n;
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return checkDigit === Number(digits[len - 1]);
+}
+
 async function onScanSuccess(decodedText) {
   const isbn = decodedText.replace(/[^0-9Xx]/g, "");
   if (isProcessing) return;
+
+  if (!isValidBarcode(isbn)) {
+    showStatus(`Misread (${isbn}) — try again.`, "error");
+    return;
+  }
 
   const lastSeen = recentlyScanned.get(isbn);
   if (lastSeen && Date.now() - lastSeen < 5000) return;
