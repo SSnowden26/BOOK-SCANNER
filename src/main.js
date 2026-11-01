@@ -44,6 +44,10 @@ const signOutBtn = document.getElementById("sign-out-btn");
 const lookupForm = document.getElementById("lookup-form");
 const lookupInput = document.getElementById("lookup-input");
 const lookupResults = document.getElementById("lookup-results");
+const lookupInfo = document.getElementById("lookup-info");
+const lookupUsernameEl = document.getElementById("lookup-username");
+const lookupTotalEl = document.getElementById("lookup-total");
+const lookupReadEl = document.getElementById("lookup-read");
 
 const STATUS_LABELS = {
   unread: "Unread",
@@ -236,6 +240,7 @@ async function addSearchResult(result, status, buttons, clickedBtn) {
       .from("books")
       .select("id")
       .eq("isbn", result.isbn)
+      .eq("user_id", currentUser.id)
       .limit(1);
     if (checkError) throw checkError;
     if (existing.length > 0) {
@@ -265,6 +270,7 @@ async function loadLibrary() {
   const { data, error } = await supabase
     .from("books")
     .select("*")
+    .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
   if (error) {
     showStatus(error.message, "error");
@@ -284,6 +290,7 @@ function renderProfile(books) {
 
 async function handleLookup(rawUsername) {
   lookupResults.innerHTML = "";
+  lookupInfo.classList.add("hidden");
   const normalized = normalizeUsername(rawUsername);
   showStatus(`Looking up ${rawUsername}...`, "info");
   try {
@@ -297,6 +304,16 @@ async function handleLookup(rawUsername) {
       showStatus(`No user found with username "${rawUsername}".`, "error");
       return;
     }
+
+    const { data: stats, error: statsError } = await supabase
+      .rpc("get_user_stats", { target_user_id: profile.id })
+      .single();
+    if (statsError) throw statsError;
+
+    lookupUsernameEl.textContent = profile.username;
+    lookupTotalEl.textContent = stats.total;
+    lookupReadEl.textContent = stats.read;
+    lookupInfo.classList.remove("hidden");
 
     const { data: books, error: booksError } = await supabase
       .from("books")

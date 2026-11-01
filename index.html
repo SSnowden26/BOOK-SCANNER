@@ -127,6 +127,21 @@
             <input id="lookup-input" type="text" autocomplete="off" placeholder="Username" />
             <button type="submit">Search</button>
           </form>
+
+          <div id="lookup-info" class="hidden">
+            <h4 id="lookup-username"></h4>
+            <div class="profile-stats">
+              <div class="profile-stat">
+                <strong id="lookup-total">0</strong>
+                <span>Books in library</span>
+              </div>
+              <div class="profile-stat">
+                <strong id="lookup-read">0</strong>
+                <span>Books read</span>
+              </div>
+            </div>
+          </div>
+
           <div id="lookup-results" class="library-grid"></div>
         </div>
       </main>
