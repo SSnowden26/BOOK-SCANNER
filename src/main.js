@@ -1,5 +1,6 @@
 import { supabase, isConfigured } from "./supabaseClient.js";
 import { lookupBook } from "./bookLookup.js";
+import { searchBooksByTitle } from "./bookSearch.js";
 import { createScanner } from "./scanner.js";
 import { normalizeIsbn } from "./isbn.js";
 import { ACCESS_CODE } from "./config.js";
@@ -15,13 +16,18 @@ const lockError = document.getElementById("lock-error");
 const statusEl = document.getElementById("status");
 const tabScanBtn = document.getElementById("tab-scan");
 const tabLibraryBtn = document.getElementById("tab-library");
+const tabWishlistBtn = document.getElementById("tab-wishlist");
 const panelScan = document.getElementById("panel-scan");
 const panelLibrary = document.getElementById("panel-library");
+const panelWishlist = document.getElementById("panel-wishlist");
 const libraryGrid = document.getElementById("library-grid");
 const sortSelect = document.getElementById("sort-select");
 const filterSelect = document.getElementById("filter-select");
 const manualForm = document.getElementById("manual-form");
 const manualInput = document.getElementById("manual-input");
+const wishlistForm = document.getElementById("wishlist-form");
+const wishlistInput = document.getElementById("wishlist-input");
+const wishlistResults = document.getElementById("wishlist-results");
 
 const STATUS_LABELS = {
   unread: "Unread",
@@ -56,13 +62,14 @@ function showStatus(message, kind = "info") {
 }
 
 function switchTab(tab) {
-  const toScan = tab === "scan";
-  tabScanBtn.classList.toggle("active", toScan);
-  tabLibraryBtn.classList.toggle("active", !toScan);
-  panelScan.classList.toggle("hidden", !toScan);
-  panelLibrary.classList.toggle("hidden", toScan);
+  tabScanBtn.classList.toggle("active", tab === "scan");
+  tabLibraryBtn.classList.toggle("active", tab === "library");
+  tabWishlistBtn.classList.toggle("active", tab === "wishlist");
+  panelScan.classList.toggle("hidden", tab !== "scan");
+  panelLibrary.classList.toggle("hidden", tab !== "library");
+  panelWishlist.classList.toggle("hidden", tab !== "wishlist");
 
-  if (toScan) {
+  if (tab === "scan") {
     startScanner();
   } else {
     stopScanner();
@@ -128,6 +135,86 @@ async function handleManualAdd(rawInput) {
   }
 
   await addBookByIsbn(isbn);
+}
+
+async function handleWishlistSearch(query) {
+  wishlistResults.innerHTML = "";
+  showStatus(`Searching for "${query}"...`, "info");
+  try {
+    const results = await searchBooksByTitle(query);
+    if (results.length === 0) {
+      wishlistResults.innerHTML = `<p class="empty">No matches found.</p>`;
+      showStatus("No matches found.", "error");
+      return;
+    }
+    for (const result of results) {
+      wishlistResults.appendChild(wishlistCard(result));
+    }
+    showStatus(`Found ${results.length} result${results.length === 1 ? "" : "s"}.`, "success");
+  } catch (err) {
+    showStatus(`Search failed: ${err.message}`, "error");
+  }
+}
+
+function wishlistCard(result) {
+  const card = document.createElement("div");
+  card.className = "book-card";
+
+  const img = document.createElement("img");
+  img.src = result.cover_url || "";
+  img.alt = result.title ?? "Unknown title";
+  img.onerror = () => {
+    img.style.visibility = "hidden";
+  };
+
+  const info = document.createElement("div");
+  info.className = "book-info";
+  info.innerHTML = `
+    <strong>${escapeHtml(result.title ?? "Unknown title")}</strong>
+    <span>${escapeHtml(result.author ?? "")}</span>
+    <span class="isbn">${escapeHtml(result.isbn)}</span>
+  `;
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "wishlist-add-btn";
+  addBtn.textContent = "Add to Library";
+  addBtn.addEventListener("click", () => addToWishlist(result, addBtn));
+
+  card.append(img, info, addBtn);
+  return card;
+}
+
+async function addToWishlist(result, addBtn) {
+  addBtn.disabled = true;
+  showStatus(`Adding ${result.title ?? result.isbn}...`, "info");
+  try {
+    const { data: existing, error: checkError } = await supabase
+      .from("books")
+      .select("id")
+      .eq("isbn", result.isbn)
+      .limit(1);
+    if (checkError) throw checkError;
+    if (existing.length > 0) {
+      showStatus(`Already in your library: ${result.title ?? result.isbn}`, "error");
+      addBtn.disabled = false;
+      return;
+    }
+
+    const { error } = await supabase.from("books").insert({
+      isbn: result.isbn,
+      title: result.title,
+      author: result.author,
+      cover_url: result.cover_url,
+      status: "unowned",
+    });
+    if (error) throw error;
+    showStatus(`Added to wishlist: ${result.title ?? result.isbn}`, "success");
+    addBtn.textContent = "Added";
+  } catch (err) {
+    showStatus(`Failed to add: ${err.message}`, "error");
+    addBtn.disabled = false;
+  }
 }
 
 async function loadLibrary() {
@@ -303,17 +390,23 @@ function init() {
     );
     tabScanBtn.disabled = true;
     tabLibraryBtn.disabled = true;
+    tabWishlistBtn.disabled = true;
     return;
   }
 
   tabScanBtn.addEventListener("click", () => switchTab("scan"));
   tabLibraryBtn.addEventListener("click", () => switchTab("library"));
+  tabWishlistBtn.addEventListener("click", () => switchTab("wishlist"));
   sortSelect.addEventListener("change", () => renderLibrary(currentBooks));
   filterSelect.addEventListener("change", () => renderLibrary(currentBooks));
   manualForm.addEventListener("submit", (e) => {
     e.preventDefault();
     handleManualAdd(manualInput.value);
     manualInput.value = "";
+  });
+  wishlistForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (wishlistInput.value.trim()) handleWishlistSearch(wishlistInput.value.trim());
   });
 
   loadLibrary();

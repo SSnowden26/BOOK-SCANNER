@@ -23,6 +23,7 @@
         <nav class="tabs">
           <button id="tab-scan" class="tab-btn">Scan</button>
           <button id="tab-library" class="tab-btn active">Library</button>
+          <button id="tab-wishlist" class="tab-btn">Wishlist</button>
         </nav>
       </header>
 
@@ -68,6 +69,19 @@
           </select>
         </div>
         <div id="library-grid" class="library-grid"></div>
+      </main>
+
+      <main id="panel-wishlist" class="panel hidden">
+        <form id="wishlist-form" class="manual-form">
+          <input
+            id="wishlist-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Search by book title"
+          />
+          <button type="submit">Search</button>
+        </form>
+        <div id="wishlist-results" class="library-grid"></div>
       </main>
     </div>
     <script type="module" src="/src/main.js"></script>
