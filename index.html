@@ -29,7 +29,7 @@
           Book Scanner
         </h1>
         <nav class="tabs">
-          <button id="tab-scan" class="tab-btn">Scan</button>
+          <button id="tab-scan" class="tab-btn">Scan &amp; Search</button>
           <button id="tab-library" class="tab-btn active">Library</button>
           <button id="tab-wishlist" class="tab-btn">Wishlist</button>
         </nav>
@@ -53,6 +53,19 @@
           />
           <button type="submit">Add</button>
         </form>
+
+        <p class="or-divider">or</p>
+
+        <form id="wishlist-form" class="manual-form">
+          <input
+            id="wishlist-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Search by book title"
+          />
+          <button type="submit">Search</button>
+        </form>
+        <div id="wishlist-results" class="library-grid"></div>
       </main>
 
       <main id="panel-library" class="panel">
@@ -64,7 +77,7 @@
             <option value="reading">Currently reading</option>
             <option value="read">Read</option>
             <option value="owned">Owned</option>
-            <option value="unowned">Unowned</option>
+            <option value="wishlisted">Wishlisted</option>
           </select>
 
           <label for="sort-select">Sort by</label>
@@ -80,16 +93,7 @@
       </main>
 
       <main id="panel-wishlist" class="panel hidden">
-        <form id="wishlist-form" class="manual-form">
-          <input
-            id="wishlist-input"
-            type="text"
-            autocomplete="off"
-            placeholder="Search by book title"
-          />
-          <button type="submit">Search</button>
-        </form>
-        <div id="wishlist-results" class="library-grid"></div>
+        <div id="wishlist-grid" class="library-grid"></div>
       </main>
     </div>
     <script type="module" src="/src/main.js"></script>

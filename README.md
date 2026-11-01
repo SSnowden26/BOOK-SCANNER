@@ -6,12 +6,17 @@ by Supabase for storage and realtime sync.
 
 ## How it works
 
-- **Scan tab** (use on your phone): opens the camera, reads the ISBN
-  barcode, looks up the title/author/cover via Open Library (falling back to
-  Google Books), and inserts a row into a Supabase table.
-- **Library tab** (use on phone or PC): shows every scanned book, and
-  updates live via Supabase Realtime whenever a new book is added from any
-  device.
+- **Scan & Search tab** (use on your phone): scan a barcode with the
+  camera, type an ISBN manually, or search by title -- each looks up
+  title/author/cover (via Open Library, falling back to Google Books) and
+  inserts a row into Supabase. Title search results let you choose **Add
+  to Library** (status `unread`) or **Add to Wishlist** (status
+  `wishlisted`).
+- **Library tab** (use on phone or PC): every book, filterable/sortable by
+  status, updating live via Supabase Realtime whenever anything changes
+  from any device.
+- **Wishlist tab**: just the books with status `wishlisted` -- books you
+  want but don't have yet.
 
 ## 1. Create a Supabase project
 
@@ -27,7 +32,7 @@ by Supabase for storage and realtime sync.
      author text,
      cover_url text,
      status text not null default 'unread'
-       check (status in ('unread', 'reading', 'read', 'owned', 'unowned')),
+       check (status in ('unread', 'reading', 'read', 'owned', 'wishlisted')),
      created_at timestamptz not null default now()
    );
 
@@ -60,15 +65,18 @@ alter table books add column status text not null default 'unread'
 create policy "public update" on books for update using (true) with check (true);
 ```
 
-### Already have the status column, just need Owned/Unowned added?
+### Already have the status column, just need Owned/Wishlisted added?
 
 The check constraint has to be dropped and recreated to allow the new
-values:
+values. This also renames the old "Unowned" status to "Wishlisted" (safe
+to run even if you have no rows with that status yet):
 
 ```sql
+update books set status = 'wishlisted' where status = 'unowned';
+
 alter table books drop constraint books_status_check;
 alter table books add constraint books_status_check
-  check (status in ('unread', 'reading', 'read', 'owned', 'unowned'));
+  check (status in ('unread', 'reading', 'read', 'owned', 'wishlisted'));
 ```
 
 ## 2. Configure the app

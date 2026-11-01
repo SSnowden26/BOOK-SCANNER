@@ -28,15 +28,16 @@ const manualInput = document.getElementById("manual-input");
 const wishlistForm = document.getElementById("wishlist-form");
 const wishlistInput = document.getElementById("wishlist-input");
 const wishlistResults = document.getElementById("wishlist-results");
+const wishlistGrid = document.getElementById("wishlist-grid");
 
 const STATUS_LABELS = {
   unread: "Unread",
   reading: "Currently reading",
   read: "Read",
   owned: "Owned",
-  unowned: "Unowned",
+  wishlisted: "Wishlisted",
 };
-const STATUS_ORDER = { reading: 0, unread: 1, read: 2, owned: 3, unowned: 4 };
+const STATUS_ORDER = { reading: 0, unread: 1, read: 2, owned: 3, wishlisted: 4 };
 
 const SORTERS = {
   added_desc: (a, b) => new Date(b.created_at) - new Date(a.created_at),
@@ -175,18 +176,33 @@ function wishlistCard(result) {
     <span class="isbn">${escapeHtml(result.isbn)}</span>
   `;
 
-  const addBtn = document.createElement("button");
-  addBtn.type = "button";
-  addBtn.className = "wishlist-add-btn";
-  addBtn.textContent = "Add to Library";
-  addBtn.addEventListener("click", () => addToWishlist(result, addBtn));
+  const actions = document.createElement("div");
+  actions.className = "wishlist-actions";
 
-  card.append(img, info, addBtn);
+  const addLibraryBtn = document.createElement("button");
+  addLibraryBtn.type = "button";
+  addLibraryBtn.className = "wishlist-add-btn";
+  addLibraryBtn.textContent = "Add to Library";
+
+  const addWishlistBtn = document.createElement("button");
+  addWishlistBtn.type = "button";
+  addWishlistBtn.className = "wishlist-add-btn wishlist-add-btn-secondary";
+  addWishlistBtn.textContent = "Add to Wishlist";
+
+  addLibraryBtn.addEventListener("click", () =>
+    addSearchResult(result, "unread", [addLibraryBtn, addWishlistBtn], addLibraryBtn)
+  );
+  addWishlistBtn.addEventListener("click", () =>
+    addSearchResult(result, "wishlisted", [addLibraryBtn, addWishlistBtn], addWishlistBtn)
+  );
+
+  actions.append(addLibraryBtn, addWishlistBtn);
+  card.append(img, info, actions);
   return card;
 }
 
-async function addToWishlist(result, addBtn) {
-  addBtn.disabled = true;
+async function addSearchResult(result, status, buttons, clickedBtn) {
+  buttons.forEach((b) => (b.disabled = true));
   showStatus(`Adding ${result.title ?? result.isbn}...`, "info");
   try {
     const { data: existing, error: checkError } = await supabase
@@ -197,7 +213,7 @@ async function addToWishlist(result, addBtn) {
     if (checkError) throw checkError;
     if (existing.length > 0) {
       showStatus(`Already in your library: ${result.title ?? result.isbn}`, "error");
-      addBtn.disabled = false;
+      buttons.forEach((b) => (b.disabled = false));
       return;
     }
 
@@ -206,14 +222,14 @@ async function addToWishlist(result, addBtn) {
       title: result.title,
       author: result.author,
       cover_url: result.cover_url,
-      status: "unowned",
+      status,
     });
     if (error) throw error;
-    showStatus(`Added to wishlist: ${result.title ?? result.isbn}`, "success");
-    addBtn.textContent = "Added";
+    showStatus(`Added: ${result.title ?? result.isbn}`, "success");
+    clickedBtn.textContent = "Added";
   } catch (err) {
     showStatus(`Failed to add: ${err.message}`, "error");
-    addBtn.disabled = false;
+    buttons.forEach((b) => (b.disabled = false));
   }
 }
 
@@ -228,6 +244,20 @@ async function loadLibrary() {
   }
   currentBooks = data;
   renderLibrary(currentBooks);
+  renderWishlistTab(currentBooks);
+}
+
+function renderWishlistTab(books) {
+  wishlistGrid.innerHTML = "";
+  const wishlisted = books.filter((b) => b.status === "wishlisted");
+  if (wishlisted.length === 0) {
+    wishlistGrid.innerHTML = `<p class="empty">No wishlisted books yet.</p>`;
+    return;
+  }
+  const sorted = [...wishlisted].sort(SORTERS.added_desc);
+  for (const book of sorted) {
+    wishlistGrid.appendChild(bookCard(book));
+  }
 }
 
 function renderLibrary(books) {

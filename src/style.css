@@ -23,7 +23,7 @@
   --status-reading: #3b82f6;
   --status-read: #22c55e;
   --status-owned: #a855f7;
-  --status-unowned: #f97316;
+  --status-wishlisted: #f97316;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -436,8 +436,8 @@ body {
   border-left-color: var(--status-owned);
 }
 
-.book-card[data-status="unowned"] {
-  border-left-color: var(--status-unowned);
+.book-card[data-status="wishlisted"] {
+  border-left-color: var(--status-wishlisted);
 }
 
 .book-card img {
@@ -530,13 +530,20 @@ body {
   background: #ef44441a;
 }
 
-.wishlist-add-btn {
+.wishlist-actions {
+  display: flex;
+  gap: 6px;
   margin-top: auto;
+}
+
+.wishlist-add-btn {
+  flex: 1;
   padding: 7px;
   border: none;
   background: var(--accent);
   color: white;
   font-weight: 600;
+  font-size: 0.8rem;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -549,4 +556,16 @@ body {
 .wishlist-add-btn:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.wishlist-add-btn-secondary {
+  background: transparent;
+  border: 1.5px solid var(--select-border);
+  color: var(--text);
+}
+
+.wishlist-add-btn-secondary:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
 }
