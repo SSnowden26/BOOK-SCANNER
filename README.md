@@ -72,12 +72,19 @@ values. This also renames the old "Unowned" status to "Wishlisted" (safe
 to run even if you have no rows with that status yet):
 
 ```sql
+alter table books drop constraint books_status_check;
+alter table books add constraint books_status_check
+  check (status in ('unread', 'reading', 'read', 'owned', 'unowned', 'wishlisted'));
+
 update books set status = 'wishlisted' where status = 'unowned';
 
 alter table books drop constraint books_status_check;
 alter table books add constraint books_status_check
   check (status in ('unread', 'reading', 'read', 'owned', 'wishlisted'));
 ```
+
+(The constraint is widened first so the rename update doesn't get rejected
+by the old constraint, then narrowed back down to the final set.)
 
 ## 2. Configure the app
 
