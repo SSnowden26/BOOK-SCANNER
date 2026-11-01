@@ -81,9 +81,11 @@ body {
 #scanner-view {
   width: 100%;
   max-width: 480px;
+  min-height: 320px;
   margin: 0 auto;
   border-radius: 12px;
   overflow: hidden;
+  background: #000;
 }
 
 .hint {

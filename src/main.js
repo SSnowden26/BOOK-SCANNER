@@ -38,10 +38,18 @@ async function startScanner() {
   html5QrCode = new Html5Qrcode("scanner-view");
   try {
     await html5QrCode.start(
-      { facingMode: "environment" },
       {
-        fps: 10,
-        qrbox: { width: 280, height: 150 },
+        facingMode: "environment",
+        width: { min: 1280, ideal: 1920 },
+        height: { min: 720, ideal: 1080 },
+      },
+      {
+        fps: 15,
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const width = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.9);
+          return { width, height: Math.floor(width * 0.45) };
+        },
+        disableFlip: true,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.UPC_A,
