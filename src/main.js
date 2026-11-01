@@ -3,7 +3,7 @@ import { lookupBook } from "./bookLookup.js";
 import { searchBooksByTitle } from "./bookSearch.js";
 import { createScanner } from "./scanner.js";
 import { normalizeIsbn } from "./isbn.js";
-import { signUp, signIn, signOut, getProfile } from "./auth.js";
+import { signUp, signIn, signOut, getProfile, normalizeUsername } from "./auth.js";
 import "./style.css";
 
 const appEl = document.getElementById("app");
@@ -41,6 +41,9 @@ const profileUsernameEl = document.getElementById("profile-username");
 const profileTotalEl = document.getElementById("profile-total");
 const profileReadEl = document.getElementById("profile-read");
 const signOutBtn = document.getElementById("sign-out-btn");
+const lookupForm = document.getElementById("lookup-form");
+const lookupInput = document.getElementById("lookup-input");
+const lookupResults = document.getElementById("lookup-results");
 
 const STATUS_LABELS = {
   unread: "Unread",
@@ -279,6 +282,71 @@ function renderProfile(books) {
   profileReadEl.textContent = books.filter((b) => b.status === "read").length;
 }
 
+async function handleLookup(rawUsername) {
+  lookupResults.innerHTML = "";
+  const normalized = normalizeUsername(rawUsername);
+  showStatus(`Looking up ${rawUsername}...`, "info");
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .eq("username_normalized", normalized)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    if (!profile) {
+      showStatus(`No user found with username "${rawUsername}".`, "error");
+      return;
+    }
+
+    const { data: books, error: booksError } = await supabase
+      .from("books")
+      .select("*")
+      .eq("user_id", profile.id)
+      .eq("status", "wishlisted")
+      .order("created_at", { ascending: false });
+    if (booksError) throw booksError;
+
+    if (books.length === 0) {
+      lookupResults.innerHTML = `<p class="empty">${escapeHtml(
+        profile.username
+      )} has no wishlisted books.</p>`;
+      showStatus(`${profile.username} has no wishlisted books.`, "info");
+      return;
+    }
+
+    for (const book of books) {
+      lookupResults.appendChild(readOnlyBookCard(book));
+    }
+    showStatus(`Showing ${profile.username}'s wishlist.`, "success");
+  } catch (err) {
+    showStatus(`Lookup failed: ${err.message}`, "error");
+  }
+}
+
+function readOnlyBookCard(book) {
+  const card = document.createElement("div");
+  card.className = "book-card";
+  card.dataset.status = book.status;
+
+  const img = document.createElement("img");
+  img.src = book.cover_url || "";
+  img.alt = book.title ?? "Unknown title";
+  img.onerror = () => {
+    img.style.visibility = "hidden";
+  };
+
+  const info = document.createElement("div");
+  info.className = "book-info";
+  info.innerHTML = `
+    <strong>${escapeHtml(book.title ?? "Unknown title")}</strong>
+    <span>${escapeHtml(book.author ?? "")}</span>
+    <span class="isbn">${escapeHtml(book.isbn)}</span>
+  `;
+
+  card.append(img, info);
+  return card;
+}
+
 function renderWishlistTab(books) {
   wishlistGrid.innerHTML = "";
   const wishlisted = books.filter((b) => b.status === "wishlisted");
@@ -482,6 +550,10 @@ function init() {
     if (wishlistInput.value.trim()) handleWishlistSearch(wishlistInput.value.trim());
   });
   signOutBtn.addEventListener("click", handleSignOut);
+  lookupForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (lookupInput.value.trim()) handleLookup(lookupInput.value.trim());
+  });
 
   if (!hasSubscribed) {
     subscribeToLibrary();

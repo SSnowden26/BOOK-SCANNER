@@ -662,3 +662,18 @@ body {
 .sign-out-btn:hover {
   background: #ef44441a;
 }
+
+.lookup-card {
+  max-width: 600px;
+  margin: 24px auto 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow);
+}
+
+.lookup-card h3 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+}
