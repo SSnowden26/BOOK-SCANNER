@@ -1,6 +1,6 @@
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { supabase, isConfigured } from "./supabaseClient.js";
 import { lookupBook } from "./bookLookup.js";
+import { createScanner } from "./scanner.js";
 import "./style.css";
 
 const statusEl = document.getElementById("status");
@@ -10,7 +10,11 @@ const panelScan = document.getElementById("panel-scan");
 const panelLibrary = document.getElementById("panel-library");
 const libraryGrid = document.getElementById("library-grid");
 
-let html5QrCode = null;
+const scanner = createScanner({
+  container: document.getElementById("scanner-view"),
+  onDetected: onScanSuccess,
+});
+
 let isProcessing = false;
 const recentlyScanned = new Map(); // isbn -> timestamp, debounces repeat scans
 
@@ -34,46 +38,16 @@ function switchTab(tab) {
 }
 
 async function startScanner() {
-  if (html5QrCode) return;
-  html5QrCode = new Html5Qrcode("scanner-view");
   try {
-    await html5QrCode.start(
-      { facingMode: "environment" },
-      {
-        fps: 15,
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const width = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.9);
-          return { width, height: Math.floor(width * 0.45) };
-        },
-        disableFlip: true,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.UPC_A,
-        ],
-        videoConstraints: {
-          facingMode: "environment",
-          width: { min: 1280, ideal: 1920 },
-          height: { min: 720, ideal: 1080 },
-        },
-      },
-      onScanSuccess
-    );
+    await scanner.start();
     showStatus("Point the camera at a barcode.", "info");
   } catch (err) {
-    showStatus(`Camera error: ${err}`, "error");
-    html5QrCode = null;
+    showStatus(`Camera error: ${err.message || err}`, "error");
   }
 }
 
-async function stopScanner() {
-  if (!html5QrCode) return;
-  try {
-    await html5QrCode.stop();
-    html5QrCode.clear();
-  } catch {
-    // ignore stop errors
-  }
-  html5QrCode = null;
+function stopScanner() {
+  scanner.stop();
 }
 
 // Validates the check digit on an EAN-13 or UPC-A barcode. Catches the
