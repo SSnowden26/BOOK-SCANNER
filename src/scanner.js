@@ -76,13 +76,17 @@ export function createScanner({ container, onDetected }) {
     const x = Math.min(1, Math.max(0, (displayX + offsetX) / renderedWidth));
     const y = Math.min(1, Math.max(0, (displayY + offsetY) / renderedHeight));
 
-    const advanced = [{ pointsOfInterest: [{ x, y }] }];
+    // Combine pointsOfInterest and focusMode into a single constraint set
+    // (rather than separate "advanced" entries) -- some Android camera
+    // stacks only honor a new point of interest when it's applied
+    // together with the focus mode in the same set.
+    const constraintSet = { pointsOfInterest: [{ x, y }] };
     if (capabilities.focusMode.includes("single-shot")) {
-      advanced.push({ focusMode: "single-shot" });
+      constraintSet.focusMode = "single-shot";
     } else if (capabilities.focusMode.includes("continuous")) {
-      advanced.push({ focusMode: "continuous" });
+      constraintSet.focusMode = "continuous";
     }
-    track.applyConstraints({ advanced }).catch(() => {
+    track.applyConstraints({ advanced: [constraintSet] }).catch(() => {
       // some devices reject certain combinations; nothing to do about it
     });
   }
