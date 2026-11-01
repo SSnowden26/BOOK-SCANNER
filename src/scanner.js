@@ -44,7 +44,57 @@ export function createScanner({ container, onDetected }) {
     canvas.height = video.videoHeight || 720;
     ctx = canvas.getContext("2d", { willReadFrequently: true });
 
+    container.addEventListener("click", onTap);
+
     intervalId = setInterval(scanFrame, SCAN_INTERVAL_MS);
+  }
+
+  // Chrome on Android exposes focusMode/pointsOfInterest via getUserMedia
+  // constraints, so tapping can nudge the camera to refocus there. iOS
+  // Safari doesn't expose these at all (track.getCapabilities().focusMode
+  // comes back empty), so this silently does nothing there -- which is
+  // fine, since iOS already autofocuses well on its own.
+  function onTap(e) {
+    if (!video || !stream) return;
+    showFocusRing(e.clientX, e.clientY);
+
+    const track = stream.getVideoTracks()[0];
+    const capabilities = track?.getCapabilities?.() ?? {};
+    if (!capabilities.focusMode || !video.videoWidth) return;
+
+    const rect = container.getBoundingClientRect();
+    const displayX = e.clientX - rect.left;
+    const displayY = e.clientY - rect.top;
+
+    // Map the tap position (in the displayed, object-fit:cover-cropped
+    // box) back to a normalized point in the camera's native frame.
+    const scale = Math.max(rect.width / video.videoWidth, rect.height / video.videoHeight);
+    const renderedWidth = video.videoWidth * scale;
+    const renderedHeight = video.videoHeight * scale;
+    const offsetX = (renderedWidth - rect.width) / 2;
+    const offsetY = (renderedHeight - rect.height) / 2;
+    const x = Math.min(1, Math.max(0, (displayX + offsetX) / renderedWidth));
+    const y = Math.min(1, Math.max(0, (displayY + offsetY) / renderedHeight));
+
+    const advanced = [{ pointsOfInterest: [{ x, y }] }];
+    if (capabilities.focusMode.includes("single-shot")) {
+      advanced.push({ focusMode: "single-shot" });
+    } else if (capabilities.focusMode.includes("continuous")) {
+      advanced.push({ focusMode: "continuous" });
+    }
+    track.applyConstraints({ advanced }).catch(() => {
+      // some devices reject certain combinations; nothing to do about it
+    });
+  }
+
+  function showFocusRing(clientX, clientY) {
+    const ring = document.createElement("div");
+    ring.className = "focus-ring";
+    const rect = container.getBoundingClientRect();
+    ring.style.left = `${clientX - rect.left}px`;
+    ring.style.top = `${clientY - rect.top}px`;
+    container.appendChild(ring);
+    ring.addEventListener("animationend", () => ring.remove());
   }
 
   async function scanFrame() {
@@ -75,6 +125,7 @@ export function createScanner({ container, onDetected }) {
   function stop() {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
+    container.removeEventListener("click", onTap);
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       stream = null;

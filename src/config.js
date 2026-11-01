@@ -10,4 +10,3 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // the Supabase anon key above). Change this to whatever code you want to
 // share with people you intend to give access to.
 export const ACCESS_CODE = "110125";
-
